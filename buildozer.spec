@@ -8,7 +8,7 @@ source.include_exts = py,png,jpg,kv,atlas,ttc
 
 version = 0.0.1
 
-requirements = python3,kivy==2.3.1,kivymd,requests,libiconv,libffi
+requirements = python3,kivy==2.3.1,kivymd==1.2.0,pillow,requests,libiconv,libffi
 
 entrypoint = main.py
 
@@ -19,13 +19,14 @@ android.ndk = 25b
 android.archs = arm64-v8a
 android.ndk.parallel_jobs = 2
 
-exclude_patterns = **/test/*, **/tests/*
+exclude_dirs = tests, .git
+
 android.gradle_download = https://services.gradle.org/distributions/gradle-7.6.4-all.zip
 android.gradle_plugin = 7.4.2
 android.ndk_api = 21
 p4a.gradle_dependencies = gradle:7.6.4
 p4a.bootstrap = sdl2
-p4a.gradle_options = -Dorg.gradle.java.home=/usr/lib/jvm/java-17-openjdk-amd64
+p4a.gradle_options = -Dorg.gradle.java.home=/usr/lib/jvm/temurin-17-jdk-amd64
 
 android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE
 android.aab = False
