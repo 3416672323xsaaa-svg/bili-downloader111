@@ -31,3 +31,7 @@ p4a.allow_prebuilt_recipes = True
 
 buildozer.android.sdk_auto_update = False
 buildozer.android.ndk_auto_update = False
+
+[buildozer]
+log_level = 2
+warn_on_root = 0
