@@ -39,8 +39,6 @@ jobs:
 
       - name: Basic code check
         run: |
-          python -m pip install --upgrade pip
-          pip install kivy kivymd
           python -m compileall .
 
   package-apks:
@@ -94,7 +92,7 @@ jobs:
           rm -rf .buildozer bin
           buildozer android clean || true
 
-      - name: Build APK 【读取你完全没改动的buildozer.spec】
+      - name: Build APK
         run: |
           export MAKEFLAGS="-j1"
           export P4A_NDK_JOBS=1
