@@ -17,42 +17,18 @@ from kivy.uix.spinner import Spinner
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.progressbar import ProgressBar
 
-from bili_api import parse_video, get_video_formats, download_cover
-from download_manager import DownloadManager
+# ========= 重点：注释顶部导入，APP启动不再加载api/manager =========
+# from bili_api import parse_video, get_video_formats, download_cover
+# from download_manager import DownloadManager
+# ========================================================
 
 
-# ===================== 【暂时注释：运行时下载yt‑dlp，安卓极易网络超时闪退】 =====================
-# def load_ytdlp():
-#     try:
-#         if sys.platform == "android":
-#             from android.storage import app_storage_path
-#             app_path = app_storage_path()
-#             ydl_file = os.path.join(app_path, "yt_dlp_main.py")
-#         else:
-#             app_path = "."
-#             ydl_file = os.path.join(app_path, "yt_dlp_main.py")
-#
-#         if not os.path.exists(ydl_file):
-#             print("首次启动，正在下载 yt‑dlp ...")
-#             import requests
-#             url = "https://mirror.ghproxy.com/https://raw.githubusercontent.com/yt-dlp/yt-dlp/master/yt_dlp/__main__.py"
-#             resp = requests.get(url, timeout=30)
-#             resp.raise_for_status()
-#             with open(ydl_file, "wb") as f:
-#                 f.write(resp.content)
-#         sys.path.insert(0, app_path)
-#         import yt_dlp
-#         return yt_dlp
-#     except Exception as e:
-#         print("yt‑dlp加载失败：", e)
-#         return None
-
+# ===================== 【暂时注释：yt‑dlp，暂不启用】 =====================
 yt_dlp = None
 # =================================================================
 
-# 安卓规避字体路径异常，直接使用系统Roboto字体
+# 字体与配色
 FONT = "Roboto"
-
 PINK = "#FB7299"
 BG = "#FFF7FA"
 DARK = "#28242A"
@@ -77,20 +53,13 @@ class ActionButton(Button):
 
 
 class BiliPinkApp(App):
-    title = "哔哩哔哩视频下载器"
+    title = "BiliPink"
 
     def build(self):
-        # 暂时关闭动态加载yt‑dlp
-        # def init_extra():
-        #     global yt_dlp
-        #     yt_dlp = load_ytdlp()
-        #     if yt_dlp is None:
-        #         print("yt‑dlp加载失败！下载功能不可用")
-        # threading.Thread(target=init_extra, daemon=True).start()
-
         self.video = None
         self.formats = []
-        self.download_manager = DownloadManager()
+        # 初始化为空，延迟实例化
+        self.download_manager = None
 
         root = BoxLayout(orientation="vertical", padding=[dp(13), dp(12), dp(13), dp(8)], spacing=dp(8))
         with root.canvas.before:
@@ -188,7 +157,7 @@ class BiliPinkApp(App):
         body.add_widget(self.progress_text)
 
         note = Label(
-            text="⚠️当前版本yt‑dlp功能暂未集成。高画质取决于 B 站账号权限。高清DASH流输出独立视频/音频文件，需第三方工具合并；请仅保存你有权下载的内容。",
+            text="⚠️当前yt‑dlp功能暂未集成。高画质取决于 B 站账号权限。高清DASH流输出独立视频/音频文件，需第三方工具合并；请仅保存你有权下载的内容。",
             color=c(MUTED), font_size="10sp", font_name=FONT, size_hint_y=None,
             height=dp(36), halign="left", valign="middle")
         note.bind(size=lambda w, v: setattr(w, "text_size", v))
@@ -197,6 +166,14 @@ class BiliPinkApp(App):
         scroll.add_widget(body)
         root.add_widget(scroll)
         return root
+
+    # ========== 获取DownloadManager，延迟实例化 ==========
+    def get_dm(self):
+        if self.download_manager is None:
+            from download_manager import DownloadManager
+            self.download_manager = DownloadManager()
+        return self.download_manager
+    # ==========================================================
 
     def _bg_update(self, *_):
         self.bg_rect.pos = self.root.pos
@@ -222,8 +199,10 @@ class BiliPinkApp(App):
 
     def _parse_worker(self, value):
         try:
+            # 点击解析时才导入
+            from bili_api import parse_video, get_video_formats
             video = parse_video(value)
-            formats = get_video_formats(value)
+            formats = get_video_formats(video)
 
             def apply(_dt):
                 self.video, self.formats = video, formats
@@ -260,21 +239,15 @@ class BiliPinkApp(App):
     def format_info(v):
         rows = [
             ("标题", v.get("title")), ("UP 主", v.get("owner")),
-            ("UP 主 UID", v.get("mid")), ("BV 号", v.get("bvid")),
+            ("BV 号", v.get("bvid")),
             ("AV 号", "av" + str(v.get("aid")) if v.get("aid") else None),
-            ("分区", v.get("tname")), ("发布时间", v.get("pubdate")),
-            ("时长", v.get("duration_text")), ("播放", v.get("view")),
-            ("点赞", v.get("like")), ("投币", v.get("coin")),
-            ("收藏", v.get("favorite")), ("分享", v.get("share")),
-            ("评论", v.get("reply")), ("弹幕", v.get("danmaku")),
-            ("分 P 数", v.get("archive")),
-            ("视频链接", v.get("url")),
+            ("CID", v.get("cid")),
             ("简介", v.get("description")),
         ]
         page_rows = []
         for page in (v.get("pages") or []):
             page_rows.append(
-                f"P{page.get('page', '?')}：{page.get('part') or '未命名'} · CID {page.get('cid') or '暂无'} · {page.get('duration_text') or '时长未知'}")
+                f"P{page.get('page', '?')}：{page.get('part') or '未命名'} · CID {page.get('cid') or '暂无'}")
         result = "\n".join(f"{k}：{value if value not in (None, '') else '暂无数据'}" for k, value in rows)
         return result + ("\n\n分 P 详情：\n" + "\n".join(page_rows) if page_rows else "")
 
@@ -286,13 +259,13 @@ class BiliPinkApp(App):
 
     def _cover_worker(self):
         try:
-            path = download_cover(self.video, self.download_manager.output_dir())
+            from bili_api import download_cover
+            path = download_cover(self.video, self.get_dm().output_dir())
             self.set_status("封面已保存：" + str(path))
         except Exception as exc:
             self.set_status("封面下载失败：" + str(exc)[:150])
 
     def download_clicked(self, *_):
-        # 提示：yt‑dlp暂未集成
         self.set_status("下载功能暂未实现，仅可解析视频信息、下载封面")
         return
 
