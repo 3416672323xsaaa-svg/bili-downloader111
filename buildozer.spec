@@ -4,11 +4,11 @@ package.name = bilipink
 package.domain = org.bilipink
 
 source.dir = .
-source.include_exts = py,png,jpg,jpeg,kv,atlas,ttf,txt,json,xml
+source.include_exts = py,png,jpg,jpeg,kv,ttf,txt,json
 
 version = 0.0.1
 
-requirements = python3,kivy==2.3.1,pillow,requests,certifi,urllib3,chardet,idna
+requirements = python3,kivy==2.3.1,pillow,requests,certifi
 
 entrypoint = main.py
 
