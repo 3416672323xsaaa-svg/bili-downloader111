@@ -3,11 +3,13 @@ on: [push]
 env:
   PYTHONFORANDROID_PREREQUISITES_INSTALL_INTERACTIVE: 0
   P4A_BOOTSTRAP_DOWNLOAD_HOST: https://mirror.ghproxy.com
+  P4A_GIT_REPO: ""
 
 name: Build Kivy Android APK In Debug Mode
 jobs:
   build-android:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -29,7 +31,7 @@ jobs:
           sudo apt-get install -y git zip unzip python3-pip autoconf automake libtool pkg-config zlib1g-dev libltdl-dev
 
       - name: Install buildozer
-        run: pip install buildozer python-for-android
+        run: pip install buildozer python-for-android==2024.12.0
 
       - name: Build debug apk
         run: |
