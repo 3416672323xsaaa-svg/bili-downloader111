@@ -2,6 +2,7 @@ on: [push, pull_request]
 
 env:
   PYTHONFORANDROID_PREREQUISITES_INSTALL_INTERACTIVE: 0
+  P4A_BOOTSTRAP_DOWNLOAD_HOST: https://mirror.ghproxy.com
 
 name: Android Integration
 jobs:
@@ -26,6 +27,7 @@ jobs:
       run: |
         sed -i.bak "s/# android.accept_sdk_license = False/android.accept_sdk_license = True/" buildozer.spec
         sed -i.bak "s/#p4a.branch = master/p4a.branch = develop/" buildozer.spec
+        sed -i.bak "s/# android.ndk = 25b/android.ndk = 25b/" buildozer.spec
         buildozer android p4a -- --help
     # Install OS specific dependencies
     - name: Install Linux dependencies
