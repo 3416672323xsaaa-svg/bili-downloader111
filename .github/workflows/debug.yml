@@ -12,7 +12,7 @@ permissions:
 env:
   CYTHON_LANGUAGE_LEVEL: "3"
   P4A_BOOTSTRAP_DOWNLOAD_HOST: https://mirror.ghproxy.com
-  P4A_GIT_MIRROR_PREFIX: https://mirror.ghproxy.com/
+  P4A_GIT_MIRROR_PREFIX: https://mirror.ghproxy.com
   GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2048m"
   P4A_ANDROID_SDK: ${{ github.workspace }}/android-sdk
   ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
@@ -54,7 +54,8 @@ jobs:
 
       - name: Build APK
         run: |
-          buildozer android debug deploy run
+          export MAKEFLAGS="-j1"
+          buildozer -v android debug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
