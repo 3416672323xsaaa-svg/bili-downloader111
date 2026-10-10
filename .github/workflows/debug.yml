@@ -1,95 +1,143 @@
-name: Build BiliPink Android APK
+name: Android CI Build
 
 on:
+  pull_request:
   workflow_dispatch:
   push:
     branches:
-      - main
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+      - "**"
 
 permissions:
-  contents: write
-  actions: read
-  checks: read
+  contents: read
 
-env:
-  ANDROID_HOME: /usr/local/lib/android/sdk
-  ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-  JAVA_HOME: /usr/lib/jvm/temurin-17-jdk-amd64
-  CYTHON_LANGUAGE_LEVEL: "3"
-  GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2048m"
+concurrency:
+  # Group per ref AND event type: routine pushes to the same branch still cancel
+  # their superseded check runs, but a workflow_dispatch packaging run is never
+  # cancelled by a merge push landing on the same ref mid-build.
+  group: android-ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
-  build-android:
+  check:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Download code
+        uses: actions/checkout@v6
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - name: Prepare Java
+        uses: actions/setup-java@v5
         with:
-          java-version: "17"
           distribution: temurin
+          java-version: "17"
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Prepare Android tools
+        uses: android-actions/setup-android@v3
         with:
-          python-version: "3.9"
+          packages: ""
 
-      - name: Install dependencies
+      - name: Prepare Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+
+      - name: Install needed tools
         run: |
-          sudo apt update
-          sudo apt install -y \
-            git \
-            zip \
-            unzip \
-            autoconf \
-            automake \
-            libtool \
-            pkg-config \
-            zlib1g-dev \
-            libssl-dev \
-            libsqlite3-dev \
-            liblzma-dev \
-            libffi-dev \
-            ccache
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "cmake;3.22.1" \
+            "ndk;28.2.13676358"
 
-      - name: Install Buildozer
+      - name: Run checks
         run: |
-          python -m pip install --upgrade pip
-          pip install buildozer==1.5.0 cython==0.29.36 python-for-android
+          ./gradlew --no-daemon --no-configuration-cache \
+            -Dkotlin.compiler.execution.strategy=in-process \
+            -PskipShellTemplateSync=true \
+            -PallowDebugSignedRelease=true \
+            :app:compileStandardDebugKotlin \
+            :shell:compileDebugKotlin \
+            :app:testStandardDebugUnitTest \
+            :app:checkConfigFieldDrift
 
-      - name: Clean old build cache
+  package-apks:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Download code
+        uses: actions/checkout@v6
+
+      - name: Prepare Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Prepare Android tools
+        uses: android-actions/setup-android@v3
+        with:
+          packages: ""
+
+      - name: Prepare Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+
+      - name: Install needed tools
         run: |
-          rm -rf .buildozer
-          rm -rf bin
-          buildozer android clean || true
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "cmake;3.22.1" \
+            "ndk;28.2.13676358"
 
-      - name: Build APK
+      - name: Build APKs
         run: |
-          export MAKEFLAGS="-j1"
-          buildozer -v android debug 2>&1 > buildozer_run.log
+          ./gradlew --no-daemon --no-configuration-cache \
+            -Dkotlin.compiler.execution.strategy=in-process \
+            -PallowDebugSignedRelease=true \
+            :app:assembleStandardDebug \
+            :app:assembleStandardRelease \
+            :app:assembleGplayDebug \
+            :app:assembleGplayRelease \
+            :shell:assembleDebug \
+            :shell:assembleRelease
 
-      - name: Check APK
+      # End-to-end proof that the export pipeline produces an installable APK: a real
+      # Robolectric build through ApkBuilder against the freshly built shell template.
+      - name: Build generated demo APK
         run: |
-          ls -R bin || true
+          ./gradlew --no-daemon --no-configuration-cache \
+            -Dkotlin.compiler.execution.strategy=in-process \
+            :app:testStandardDebugUnitTest --tests "com.webtoapp.core.apkbuilder.DemoApkExportTest"
 
-      - name: Upload APK
-        if: success()
+      - name: Upload generated demo APK
         uses: actions/upload-artifact@v4
         with:
-          name: BiliPink-APK
-          path: bin/*.apk
+          name: generated-demo-apk-${{ github.run_number }}
+          path: app/build/outputs/demo/
+          if-no-files-found: error
+          retention-days: 14
 
-      - name: Upload Build Log
-        if: always()
+      - name: Upload standard APKs
         uses: actions/upload-artifact@v4
         with:
-          name: BiliPink-build-log
+          name: standard-apks-DEBUG-SIGNED-do-not-distribute-${{ github.run_number }}
           path: |
-            .buildozer/**/*.log
-            buildozer_run.log
+            app/build/outputs/apk/standard/**/*.apk
+            shell/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload gplay APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: gplay-apks-shiaho.webtoapp-DEBUG-SIGNED-do-not-distribute-${{ github.run_number }}
+          path: app/build/outputs/apk/gplay/**/*.apk
+          if-no-files-found: error
+          retention-days: 14
