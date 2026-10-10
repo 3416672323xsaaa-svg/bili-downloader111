@@ -1,22 +1,83 @@
-import re, requests
+import re
+import requests
 
-HEADERS={'User-Agent':'Mozilla/5.0'}
+HEADERS = {'User-Agent': 'Mozilla/5.0'}
 
 def extract_id(text):
-    m=re.search(r'BV[a-zA-Z0-9]{10}',text)
-    if m:return {'bvid':m.group(0)}
-    m=re.search(r'(?:av|AV)(\\d+)',text)
-    if m:return {'aid':m.group(1)}
+    m = re.search(r'BV[a-zA-Z0-9]{10}', text)
+    if m:
+        return {'bvid': m.group(0)}
+    m = re.search(r'(?:av|AV)(\d+)', text)
+    if m:
+        return {'aid': m.group(1)}
     return None
 
 def get_video_info(text):
-    ids=extract_id(text)
-    if not ids: raise Exception('无法识别视频编号')
-    r=requests.get('https://api.bilibili.com/x/web-interface/view',params=ids,headers=HEADERS,timeout=15)
-    d=r.json()
-    if d.get('code')!=0: raise Exception(d.get('message','解析失败'))
-    v=d['data']
-    return {'title':v.get('title'),'desc':v.get('desc'),'cover':v.get('pic'),'bvid':v.get('bvid'),'aid':v.get('aid'),'cid':v.get('cid'),'owner':v.get('owner',{}).get('name'),'pages':v.get('pages',[])}
+    ids = extract_id(text)
+    if not ids:
+        raise Exception('无法识别视频编号')
+    r = requests.get('https://api.bilibili.com/x/web-interface/view', params=ids, headers=HEADERS, timeout=15)
+    d = r.json()
+    if d.get('code') != 0:
+        raise Exception(d.get('message', '解析失败'))
+    v = d['data']
+    return {
+        'title': v.get('title'),
+        'desc': v.get('desc'),
+        'cover': v.get('pic'),
+        'bvid': v.get('bvid'),
+        'aid': v.get('aid'),
+        'cid': v.get('cid'),
+        'owner': v.get('owner', {}).get('name'),
+        'pages': v.get('pages', [])
+    }
 
-def get_play_info(bvid,cid):
-    return requests.get('https://api.bilibili.com/x/player/playurl',params={'bvid':bvid,'cid':cid,'fnval':16},headers=HEADERS,timeout=15).json()
+def get_play_info(bvid, cid):
+    resp = requests.get('https://api.bilibili.com/x/player/playurl',
+        params={'bvid': bvid, 'cid': cid, 'fnval': 16},
+        headers=HEADERS, timeout=15)
+    return resp.json()
+
+# 对外统一接口，适配main.py调用
+def parse_video(text):
+    return get_video_info(text)
+
+def get_video_formats(text):
+    info = get_video_info(text)
+    bvid = info["bvid"]
+    cid = info["cid"]
+    play_data = get_play_info(bvid, cid)
+    # 简易构造格式列表，适配你main.py的UI渲染
+    dash = play_data.get("data", {}).get("dash", {})
+    formats = []
+    for video in dash.get("video", []):
+        formats.append({
+            "height": video.get("height"),
+            "fps": video.get("fps"),
+            "ext": "mp4",
+            "filesize": video.get("size"),
+            "format_id": video.get("id"),
+            "format_note": ""
+        })
+    for audio in dash.get("audio", []):
+        formats.append({
+            "height": None,
+            "fps": None,
+            "ext": "m4a",
+            "filesize": audio.get("size"),
+            "format_id": audio.get("id"),
+            "format_note": "音频"
+        })
+    return formats
+
+def download_cover(video_info, save_dir):
+    # 下载封面，适配main.py调用
+    url = video_info.get("cover")
+    if not url:
+        raise Exception("没有封面链接")
+    resp = requests.get(url, headers=HEADERS, timeout=20)
+    import os
+    path = os.path.join(save_dir, "cover.jpg")
+    with open(path, "wb") as f:
+        f.write(resp.content)
+    return path
