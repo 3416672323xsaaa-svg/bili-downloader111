@@ -1,11 +1,14 @@
 name: Build
 
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build-android:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v4
@@ -16,7 +19,10 @@ jobs:
         with:
           command: buildozer android debug
           buildozer_version: stable
-          overwrite_spec: false   # 关键！不覆盖仓库里你的buildozer.spec
+          overwrite_spec: false
+
+      - name: Show apk path info
+        run: echo "APK路径输出：${{ steps.buildozer.outputs.filename }}"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
