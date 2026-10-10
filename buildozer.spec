@@ -8,7 +8,7 @@ package.domain = org.bilipink
 
 source.dir = .
 
-source.include_exts = py,png,jpg,jpeg,kv,json,txt
+source.include_exts = py,png,jpg,jpeg,kv,json,txt,ttc
 
 version = 0.0.1
 
