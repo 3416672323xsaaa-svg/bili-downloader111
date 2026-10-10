@@ -1,11 +1,17 @@
 [app]
+
 title = BiliPink
+
 package.name = bilipink
+
 package.domain = org.bilipink
+
 source.dir = .
+
 source.include_exts = py,png,jpg,jpeg,kv,atlas,ttf,txt,json,xml
-source.include_patterns = assets/fonts/*
+
 version = 0.0.1
+
 
 requirements =
     python3,
@@ -18,27 +24,34 @@ requirements =
     chardet,
     idna
 
+
 entrypoint = main.py
 
+
 android.accept_sdk_license = True
+
 android.minapi = 21
+
 android.api = 33
+
 android.ndk = 25b
+
 p4a.bootstrap = sdl2
 
-android.permissions =
-    INTERNET,
-    WRITE_EXTERNAL_STORAGE,
-    READ_EXTERNAL_STORAGE
+
+android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE
+
 
 android.enable_androidx = True
-android.debug = True
+
 
 buildozer.android.sdk_auto_update = False
+
 buildozer.android.ndk_auto_update = False
 
-p4a.allow_prebuilt_recipes = True
 
 [buildozer]
+
 log_level = 2
+
 warn_on_root = 0
