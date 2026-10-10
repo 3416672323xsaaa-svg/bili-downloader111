@@ -7,8 +7,6 @@ import sys
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.metrics import dp
-from kivy.core.text import LabelBase
-from pathlib import Path
 from kivy.utils import get_color_from_hex
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
@@ -18,49 +16,42 @@ from kivy.uix.button import Button
 from kivy.uix.spinner import Spinner
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.progressbar import ProgressBar
+
 from bili_api import parse_video, get_video_formats, download_cover
 from download_manager import DownloadManager
 
-# ===================== 新增：动态加载 yt-dlp =====================
-def load_ytdlp():
-    try:
-        if sys.platform == "android":
-            from android.storage import app_storage_path
-            app_path = app_storage_path()
-            ydl_file = os.path.join(app_path, "yt_dlp_main.py")
-        else:
-            app_path = "."
-            ydl_file = os.path.join(app_path, "yt_dlp_main.py")
 
-        if not os.path.exists(ydl_file):
-            print("首次启动，正在下载 yt-dlp ...")
-            import requests
-            url = "https://mirror.ghproxy.com/https://raw.githubusercontent.com/yt-dlp/yt-dlp/master/yt_dlp/__main__.py"
-            resp = requests.get(url, timeout=30)
-            resp.raise_for_status()
-            with open(ydl_file, "wb") as f:
-                f.write(resp.content)
-        # 添加路径，允许import
-        sys.path.insert(0, app_path)
-        import yt_dlp
-        return yt_dlp
-    except Exception as e:
-        print("yt-dlp加载失败：", e)
-        return None
+# ===================== 【暂时注释：运行时下载yt‑dlp，安卓极易网络超时闪退】 =====================
+# def load_ytdlp():
+#     try:
+#         if sys.platform == "android":
+#             from android.storage import app_storage_path
+#             app_path = app_storage_path()
+#             ydl_file = os.path.join(app_path, "yt_dlp_main.py")
+#         else:
+#             app_path = "."
+#             ydl_file = os.path.join(app_path, "yt_dlp_main.py")
+#
+#         if not os.path.exists(ydl_file):
+#             print("首次启动，正在下载 yt‑dlp ...")
+#             import requests
+#             url = "https://mirror.ghproxy.com/https://raw.githubusercontent.com/yt-dlp/yt-dlp/master/yt_dlp/__main__.py"
+#             resp = requests.get(url, timeout=30)
+#             resp.raise_for_status()
+#             with open(ydl_file, "wb") as f:
+#                 f.write(resp.content)
+#         sys.path.insert(0, app_path)
+#         import yt_dlp
+#         return yt_dlp
+#     except Exception as e:
+#         print("yt‑dlp加载失败：", e)
+#         return None
 
-yt_dlp = load_ytdlp()
+yt_dlp = None
 # =================================================================
 
-# 将中文字体随 APK 一起打包，避免安卓上中文显示成“方框带叉”。
-FONT_PATH = str(Path(__file__).resolve().parent / "assets" / "fonts" / "NotoSansCJK-Regular.ttc")
-try:
-    if Path(FONT_PATH).is_file():
-        LabelBase.register(name="BiliChinese", fn_regular=FONT_PATH)
-        FONT = "BiliChinese"
-    else:
-        FONT = "Roboto"
-except Exception:
-    FONT = "Roboto"
+# 安卓规避字体路径异常，直接使用系统Roboto字体
+FONT = "Roboto"
 
 PINK = "#FB7299"
 BG = "#FFF7FA"
@@ -89,9 +80,18 @@ class BiliPinkApp(App):
     title = "哔哩哔哩视频下载器"
 
     def build(self):
+        # 暂时关闭动态加载yt‑dlp
+        # def init_extra():
+        #     global yt_dlp
+        #     yt_dlp = load_ytdlp()
+        #     if yt_dlp is None:
+        #         print("yt‑dlp加载失败！下载功能不可用")
+        # threading.Thread(target=init_extra, daemon=True).start()
+
         self.video = None
         self.formats = []
         self.download_manager = DownloadManager()
+
         root = BoxLayout(orientation="vertical", padding=[dp(13), dp(12), dp(13), dp(8)], spacing=dp(8))
         with root.canvas.before:
             from kivy.graphics import Color, Rectangle
@@ -187,9 +187,8 @@ class BiliPinkApp(App):
                                    size_hint_y=None, height=dp(23), halign="left")
         body.add_widget(self.progress_text)
 
-        # 已修改提示：DASH高清流需要手动合并音视频
         note = Label(
-            text="高画质取决于 B 站账号权限。高清DASH流输出独立视频/音频文件，需第三方工具合并；请仅保存你有权下载的内容。",
+            text="⚠️当前版本yt‑dlp功能暂未集成。高画质取决于 B 站账号权限。高清DASH流输出独立视频/音频文件，需第三方工具合并；请仅保存你有权下载的内容。",
             color=c(MUTED), font_size="10sp", font_name=FONT, size_hint_y=None,
             height=dp(36), halign="left", valign="middle")
         note.bind(size=lambda w, v: setattr(w, "text_size", v))
@@ -233,7 +232,9 @@ class BiliPinkApp(App):
                 self.quality.values = tuple(labels)
                 self.quality.text = labels[0] if labels else "未获取到可用格式"
                 pages = video.get("pages") or []
-                self.page_spinner.values = tuple([f"P{p.get('page', i+1)} · {p.get('part') or '分P'} · {p.get('duration_text') or '时长未知'}" for i, p in enumerate(pages)])
+                self.page_spinner.values = tuple([
+                    f"P{p.get('page', i+1)} · {p.get('part') or '分P'} · {p.get('duration_text') or '时长未知'}"
+                    for i, p in enumerate(pages)])
                 self.page_spinner.text = self.page_spinner.values[0] if self.page_spinner.values else "默认分 P"
                 self.parse_button.disabled = False
                 self.set_status(f"解析成功 · {len(formats)} 种可用格式 · {len(pages)} 个分 P")
@@ -272,7 +273,8 @@ class BiliPinkApp(App):
         ]
         page_rows = []
         for page in (v.get("pages") or []):
-            page_rows.append(f"P{page.get('page', '?')}：{page.get('part') or '未命名'} · CID {page.get('cid') or '暂无'} · {page.get('duration_text') or '时长未知'}")
+            page_rows.append(
+                f"P{page.get('page', '?')}：{page.get('part') or '未命名'} · CID {page.get('cid') or '暂无'} · {page.get('duration_text') or '时长未知'}")
         result = "\n".join(f"{k}：{value if value not in (None, '') else '暂无数据'}" for k, value in rows)
         return result + ("\n\n分 P 详情：\n" + "\n".join(page_rows) if page_rows else "")
 
@@ -290,42 +292,16 @@ class BiliPinkApp(App):
             self.set_status("封面下载失败：" + str(exc)[:150])
 
     def download_clicked(self, *_):
-        if not self.video:
-            self.set_status("请先解析视频")
-            return
-        selected = None
-        for item in self.formats:
-            if self.format_label(item) == self.quality.text:
-                selected = item
-                break
-        mode_text = self.mode.text
-        mode = "audio" if mode_text.startswith("仅下载音频") else "video" if mode_text.startswith("仅下载画面") else "both"
-        self.download_button.disabled = True
-        self.progress.value = 0
-        self.progress_text.text = "准备下载……"
-        self.set_status("下载任务已启动，请保持应用在前台以便查看进度")
-        threading.Thread(target=self._download_worker, args=(mode, selected, self._selected_page_number()), daemon=True).start()
+        # 提示：yt‑dlp暂未集成
+        self.set_status("下载功能暂未实现，仅可解析视频信息、下载封面")
+        return
 
     def _selected_page_number(self):
         match = re.match(r"P(\d+)", self.page_spinner.text or "")
         return int(match.group(1)) if match else None
 
     def _download_worker(self, mode, selected, page_number=None):
-        try:
-            def progress(percent, text):
-                def update(_dt):
-                    self.progress.value = percent
-                    self.progress_text.text = text
-                Clock.schedule_once(update, 0)
-
-            path = self.download_manager.download(
-                self.source.text.strip(), mode=mode, selected_format=selected,
-                progress_hook=progress, page_number=page_number)
-            self.set_status("下载完成：" + str(path))
-        except Exception as exc:
-            self.set_status("下载失败：" + str(exc)[:180])
-        finally:
-            Clock.schedule_once(lambda _dt: setattr(self.download_button, "disabled", False), 0)
+        pass
 
     def clear_clicked(self, *_):
         self.source.text = ""
@@ -339,7 +315,4 @@ class BiliPinkApp(App):
 
 
 if __name__ == "__main__":
-    # 检查yt-dlp是否加载成功
-    if yt_dlp is None:
-        print("yt-dlp加载失败！下载功能不可用")
     BiliPinkApp().run()
