@@ -68,6 +68,7 @@ jobs:
 
       - name: Build APK
         run: |
+          export MAKEFLAGS="-j1"
           buildozer -v android debug
 
 
