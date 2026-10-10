@@ -32,41 +32,25 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Prepare Android tools
-        uses: android-actions/setup-android@v3
+      - name: Prepare Python
+        uses: actions/setup-python@v5
         with:
-          packages: ""
+          python-version: "3.9"
 
-      - name: Prepare Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-provider: basic
-
-      - name: Install needed tools
+      - name: Basic code check
         run: |
-          sdkmanager --install \
-            "platform-tools" \
-            "platforms;android-36" \
-            "build-tools;36.0.0" \
-            "cmake;3.22.1" \
-            "ndk;28.2.13676358"
-
-      - name: Run checks
-        run: |
-          ./gradlew --no-daemon --no-configuration-cache \
-            -Dkotlin.compiler.execution.strategy=in-process \
-            -PskipShellTemplateSync=true \
-            -PallowDebugSignedRelease=true \
-            :app:compileStandardDebugKotlin \
-            :shell:compileDebugKotlin \
-            :app:testStandardDebugUnitTest \
-            :app:checkConfigFieldDrift
+          python -m pip install --upgrade pip
+          pip install kivy kivymd
+          python -m compileall .
 
   package-apks:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 90
-
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx1024m"
+      P4A_NDK_JOBS: "1"
+      MAKEFLAGS: "-j1"
     steps:
       - name: Download code
         uses: actions/checkout@v6
@@ -82,62 +66,56 @@ jobs:
         with:
           packages: ""
 
-      - name: Prepare Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-provider: basic
-
       - name: Install needed tools
         run: |
           sdkmanager --install \
             "platform-tools" \
-            "platforms;android-36" \
-            "build-tools;36.0.0" \
-            "cmake;3.22.1" \
-            "ndk;28.2.13676358"
+            "platforms;android-33" \
+            "build-tools;33.0.2" \
+            "ndk;25.2.9519653"
 
-      - name: Build APKs
+      - name: Install system dependencies
         run: |
-          ./gradlew --no-daemon --no-configuration-cache \
-            -Dkotlin.compiler.execution.strategy=in-process \
-            -PallowDebugSignedRelease=true \
-            :app:assembleStandardDebug \
-            :app:assembleStandardRelease \
-            :app:assembleGplayDebug \
-            :app:assembleGplayRelease \
-            :shell:assembleDebug \
-            :shell:assembleRelease
+          sudo apt update
+          sudo apt install -y git zip unzip autoconf automake libtool pkg-config zlib1g-dev libssl-dev libsqlite3-dev liblzma-dev libffi-dev ccache
 
-      # End-to-end proof that the export pipeline produces an installable APK: a real
-      # Robolectric build through ApkBuilder against the freshly built shell template.
-      - name: Build generated demo APK
+      - name: Prepare Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Install Buildozer
         run: |
-          ./gradlew --no-daemon --no-configuration-cache \
-            -Dkotlin.compiler.execution.strategy=in-process \
-            :app:testStandardDebugUnitTest --tests "com.webtoapp.core.apkbuilder.DemoApkExportTest"
+          python -m pip install --upgrade pip
+          pip install buildozer==1.5.0 cython==0.29.36 python-for-android
 
-      - name: Upload generated demo APK
+      - name: Clean build cache
+        run: |
+          rm -rf .buildozer bin
+          buildozer android clean || true
+
+      - name: Build APK 【读取你完全没改动的buildozer.spec】
+        run: |
+          export MAKEFLAGS="-j1"
+          export P4A_NDK_JOBS=1
+          buildozer -v android debug > buildozer_run.log 2>&1 || true
+
+      - name: Show build result
+        run: |
+          ls -la bin || true
+          tail -n 120 buildozer_run.log
+
+      - name: Upload BiliPink APK
         uses: actions/upload-artifact@v4
         with:
-          name: generated-demo-apk-${{ github.run_number }}
-          path: app/build/outputs/demo/
+          name: BiliPink-apk-${{ github.run_number }}
+          path: bin/*.apk
           if-no-files-found: error
           retention-days: 14
 
-      - name: Upload standard APKs
+      - name: Upload build log
         uses: actions/upload-artifact@v4
         with:
-          name: standard-apks-DEBUG-SIGNED-do-not-distribute-${{ github.run_number }}
-          path: |
-            app/build/outputs/apk/standard/**/*.apk
-            shell/build/outputs/apk/**/*.apk
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Upload gplay APKs
-        uses: actions/upload-artifact@v4
-        with:
-          name: gplay-apks-shiaho.webtoapp-DEBUG-SIGNED-do-not-distribute-${{ github.run_number }}
-          path: app/build/outputs/apk/gplay/**/*.apk
-          if-no-files-found: error
+          name: BiliPink-build-log-${{ github.run_number }}
+          path: buildozer_run.log
           retention-days: 14
