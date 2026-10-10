@@ -12,7 +12,7 @@ source.include_exts = py,png,jpg,jpeg,kv,atlas,ttf,txt,json
 
 version = 0.0.1
 
-requirements = python3,kivy==2.3.1,kivymd==1.2.0,pillow,requests,yt-dlp,certifi,urllib3,chardet,idna
+requirements = python3,kivy==2.3.1,kivymd==1.2.0,pillow,requests,certifi,urllib3,chardet,idna
 
 entrypoint = main.py
 
@@ -24,7 +24,7 @@ android.api = 33
 
 android.ndk = 25b
 
-android.bootstrap = sdl2
+p4a.bootstrap = sdl2
 
 android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE
 
