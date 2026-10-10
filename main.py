@@ -2,6 +2,8 @@
 """BiliPink - 哔哩哔哩视频下载器。Kivy 安卓入口。"""
 import threading
 import re
+import os
+import sys
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.metrics import dp
@@ -18,6 +20,36 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.progressbar import ProgressBar
 from bili_api import parse_video, get_video_formats, download_cover
 from download_manager import DownloadManager
+
+# ===================== 新增：动态加载 yt-dlp =====================
+def load_ytdlp():
+    try:
+        if sys.platform == "android":
+            from android.storage import app_storage_path
+            app_path = app_storage_path()
+            ydl_file = os.path.join(app_path, "yt_dlp_main.py")
+        else:
+            app_path = "."
+            ydl_file = os.path.join(app_path, "yt_dlp_main.py")
+
+        if not os.path.exists(ydl_file):
+            print("首次启动，正在下载 yt-dlp ...")
+            import requests
+            url = "https://mirror.ghproxy.com/https://raw.githubusercontent.com/yt-dlp/yt-dlp/master/yt_dlp/__main__.py"
+            resp = requests.get(url, timeout=30)
+            resp.raise_for_status()
+            with open(ydl_file, "wb") as f:
+                f.write(resp.content)
+        # 添加路径，允许import
+        sys.path.insert(0, app_path)
+        import yt_dlp
+        return yt_dlp
+    except Exception as e:
+        print("yt-dlp加载失败：", e)
+        return None
+
+yt_dlp = load_ytdlp()
+# =================================================================
 
 # 将中文字体随 APK 一起打包，避免安卓上中文显示成“方框带叉”。
 FONT_PATH = str(Path(__file__).resolve().parent / "assets" / "fonts" / "NotoSansCJK-Regular.ttc")
@@ -307,4 +339,7 @@ class BiliPinkApp(App):
 
 
 if __name__ == "__main__":
+    # 检查yt-dlp是否加载成功
+    if yt_dlp is None:
+        print("yt-dlp加载失败！下载功能不可用")
     BiliPinkApp().run()
