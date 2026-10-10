@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
 import re
+import os
 import requests
 
-HEADERS = {'User-Agent': 'Mozilla/5.0'}
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Referer': 'https://www.bilibili.com/'
+}
 
 def extract_id(text):
     m = re.search(r'BV[a-zA-Z0-9]{10}', text)
@@ -46,6 +50,8 @@ def get_video_formats(video_info):
     bvid = video_info["bvid"]
     cid = video_info["cid"]
     play_data = get_play_info(bvid, cid)
+    if play_data.get("code") != 0:
+        raise Exception("获取视频流失败：" + play_data.get("message"))
     dash = play_data.get("data", {}).get("dash", {})
     formats = []
     for video in dash.get("video", []):
@@ -66,6 +72,8 @@ def get_video_formats(video_info):
             "format_id": audio.get("id"),
             "format_note": "音频"
         })
+    if not formats:
+        raise Exception("没有找到可用DASH音视频流")
     return formats
 
 def download_cover(video_info, save_dir):
