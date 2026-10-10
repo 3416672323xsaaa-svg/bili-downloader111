@@ -11,9 +11,6 @@ permissions:
   contents: read
 
 concurrency:
-  # Group per ref AND event type: routine pushes to the same branch still cancel
-  # their superseded check runs, but a workflow_dispatch packaging run is never
-  # cancelled by a merge push landing on the same ref mid-build.
   group: android-ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: ${{ github.event_name == 'push' }}
 
@@ -42,7 +39,6 @@ jobs:
           python -m compileall .
 
   package-apks:
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
@@ -116,4 +112,3 @@ jobs:
         with:
           name: BiliPink-build-log-${{ github.run_number }}
           path: buildozer_run.log
-          retention-days: 14
