@@ -1,47 +1,44 @@
-on: [push, pull_request]
+on: [push]
 
 env:
   PYTHONFORANDROID_PREREQUISITES_INSTALL_INTERACTIVE: 0
   P4A_BOOTSTRAP_DOWNLOAD_HOST: https://mirror.ghproxy.com
 
-name: Android Integration
+name: Build Kivy Android APK In Debug Mode
 jobs:
-  Integration:
+  build-android:
     runs-on: ubuntu-latest
     steps:
-    - name: Setup Python
-      uses: actions/setup-python@v7
-      with:
-        python-version: '3.x'
-    - name: Setup Java
-      uses: actions/setup-java@v6
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-    - uses: actions/checkout@v7
-    - name: Setup environment
-      run: |
-        pip install buildozer python-for-android
-    - run: buildozer --help
-    - name: SDK, NDK, and p4a download
-      run: |
-        sed -i.bak "s/# android.accept_sdk_license = False/android.accept_sdk_license = True/" buildozer.spec
-        sed -i.bak "s/p4a.branch = develop/#p4a.branch = master/" buildozer.spec
-        sed -i.bak "s/# android.ndk = 25b/android.ndk = 25b/" buildozer.spec
-        sed -i.bak "s/android.api.*/android.api = 33/" buildozer.spec
-        buildozer android p4a -- --help
-    # Install OS specific dependencies
-    - name: Install Linux dependencies
-      run: |
-        sudo apt update
-        sudo apt -y install automake libltdl-dev
-    - name: Debug Build
-      run: |
-        export GRADLE_OPTS="-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx1536m"
-        buildozer android debug
-    - name: Upload Debug APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: BiliPink-APK-${{ github.run_number }}
-        path: bin/*.apk
-        if-no-files-found: ignore
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git zip unzip python3-pip autoconf automake libtool pkg-config zlib1g-dev libltdl-dev
+
+      - name: Install buildozer
+        run: pip install buildozer python-for-android
+
+      - name: Build debug apk
+        run: |
+          export GRADLE_OPTS="-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2048m"
+          buildozer android debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BiliPink-APK
+          path: bin/*.apk
+          if-no-files-found: ignore
