@@ -35,6 +35,10 @@ jobs:
         with:
           python-version: '3.9'
 
+      - name: Clear old broken buildozer cache
+        run: |
+          rm -rf ~/.buildozer || true
+
       - name: Cache p4a bootstrap
         uses: actions/cache@v4
         with:
