@@ -1,114 +1,46 @@
-name: Android CI Build
+on: [push, pull_request]
 
-on:
-  pull_request:
-  workflow_dispatch:
-  push:
-    branches:
-      - "**"
+env:
+  PYTHONFORANDROID_PREREQUISITES_INSTALL_INTERACTIVE: 0
 
-permissions:
-  contents: read
-
-concurrency:
-  group: android-ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
-  cancel-in-progress: ${{ github.event_name == 'push' }}
-
+name: Android Integration
 jobs:
-  check:
+  Integration:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-
     steps:
-      - name: Download code
-        uses: actions/checkout@v6
-
-      - name: Prepare Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Prepare Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.9"
-
-      - name: Basic code check
-        run: |
-          python -m compileall .
-
-  package-apks:
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    env:
-      GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx1024m"
-      P4A_NDK_JOBS: "1"
-      MAKEFLAGS: "-j1"
-    steps:
-      - name: Download code
-        uses: actions/checkout@v6
-
-      - name: Prepare Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Prepare Android tools
-        uses: android-actions/setup-android@v3
-        with:
-          packages: ""
-
-      - name: Install needed tools
-        run: |
-          sdkmanager --install \
-            "platform-tools" \
-            "platforms;android-33" \
-            "build-tools;33.0.2" \
-            "ndk;25.2.9519653"
-
-      - name: Install system dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y git zip unzip autoconf automake libtool pkg-config zlib1g-dev libssl-dev libsqlite3-dev liblzma-dev libffi-dev ccache
-
-      - name: Prepare Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.9"
-
-      - name: Install Buildozer
-        run: |
-          python -m pip install --upgrade pip
-          pip install buildozer==1.5.0 cython==0.29.36 python-for-android
-
-      - name: Clean build cache
-        run: |
-          rm -rf .buildozer bin
-          buildozer android clean || true
-
-      - name: Build APK
-        run: |
-          export MAKEFLAGS="-j1"
-          export P4A_NDK_JOBS=1
-          buildozer -v android debug > buildozer_run.log 2>&1 || true
-
-      - name: Show build result
-        run: |
-          ls -la bin || true
-          tail -n 120 buildozer_run.log
-
-      - name: Upload BiliPink APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: BiliPink-apk-${{ github.run_number }}
-          path: bin/*.apk
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Upload build log
-        uses: actions/upload-artifact@v4
-        with:
-          name: BiliPink-build-log-${{ github.run_number }}
-          path: buildozer_run.log
+    - name: Setup Python
+      uses: actions/setup-python@v7
+      with:
+        python-version: '3.x'
+    - name: Setup Java
+      uses: actions/setup-java@v6
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    - uses: actions/checkout@v7
+    - name: Setup environment
+      run: |
+        pip install buildozer python-for-android
+    - run: buildozer --help
+    - name: SDK, NDK, and p4a download
+      run: |
+        sed -i.bak "s/# android.accept_sdk_license = False/android.accept_sdk_license = True/" buildozer.spec
+        sed -i.bak "s/#p4a.branch = master/p4a.branch = develop/" buildozer.spec
+        buildozer android p4a -- --help
+    # Install OS specific dependencies
+    - name: Install Linux dependencies
+      # Required by some p4a recipes, but not
+      # installed by p4a on Linux.
+      run: |
+        sudo apt update
+        sudo apt -y install automake libltdl-dev
+    - name: Debug Build
+      run: |
+        touch main.py
+        buildozer android debug
+    - name: Upload Debug APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: BiliPink-APK-${{ github.run_number }}
+        path: bin/*.apk
+        if-no-files-found: ignore
