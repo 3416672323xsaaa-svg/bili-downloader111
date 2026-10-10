@@ -1,128 +1,62 @@
-name: Build BiliPink Android APK
-
+name: Build Kivy Android APK In Debug Mode
 on:
-  push:
-    branches:
-      - main
-
   workflow_dispatch:
-
-
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: write
   actions: read
   checks: read
-
-
 env:
-  ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-  ANDROID_HOME: /usr/local/lib/android/sdk
-
-  JAVA_HOME: /usr/lib/jvm/temurin-17-jdk-amd64
-
   CYTHON_LANGUAGE_LEVEL: "3"
-
-  GRADLE_OPTS: >
-    -Dorg.gradle.daemon=false
-    -Dorg.gradle.java.home=$JAVA_HOME
-    -Dorg.gradle.jvmargs=-Xmx2048m
-
   P4A_BOOTSTRAP_DOWNLOAD_HOST: https://mirror.ghproxy.com
-
-
+  P4A_GIT_MIRROR_PREFIX: https://mirror.ghproxy.com/
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2048m"
+  P4A_ANDROID_SDK: ${{ github.workspace }}/android-sdk
+  ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
+  ANDROID_HOME: ${{ github.workspace }}/android-sdk
 jobs:
-
   build-android:
-
     runs-on: ubuntu-latest
-
-
     steps:
-
-
       - name: Checkout code
         uses: actions/checkout@v4
 
-
-
-      - name: Cache Buildozer
-        uses: actions/cache@v4
-
-        with:
-          path: |
-            ~/.buildozer
-            ~/.gradle
-
-          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
-
-          restore-keys: |
-            buildozer-${{ runner.os }}-
-
-
-
-      - name: Setup Java 17
+      - name: Set up Java 17
         uses: actions/setup-java@v4
-
         with:
-          java-version: "17"
-          distribution: "temurin"
+          java-version: '17'
+          distribution: 'temurin'
 
-
-
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v5
-
         with:
-          python-version: "3.11"
+          python-version: '3.9'
 
+      - name: Cache p4a bootstrap
+        uses: actions/cache@v4
+        with:
+          path: ~/.buildozer
+          key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            ${{ runner.os }}-buildozer-
 
-
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
-
           sudo apt-get update
+          sudo apt-get install -y git zip unzip python3-pip autoconf automake libtool pkg-config zlib1g-dev libssl-dev
 
-          sudo apt-get install -y \
-            git \
-            zip \
-            unzip \
-            autoconf \
-            automake \
-            libtool \
-            pkg-config \
-            zlib1g-dev \
-            libssl-dev \
-            libffi-dev \
-            libsqlite3-dev \
-            cmake
-
-
-
-      - name: Install Buildozer
+      - name: Install buildozer + p4a
         run: |
-
-          python -m pip install --upgrade pip
-
-          pip install buildozer==1.5.0
-
-          pip install cython==0.29.36
-
-
+          pip install --upgrade buildozer python-for-android
 
       - name: Build APK
         run: |
+          buildozer android debug deploy run
 
-          export MAKEFLAGS="-j1"
-
-          buildozer -v android debug
-
-
-
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
-
         with:
-
-          name: BiliPink-debug-apk
-
+          name: BiliPink-APK
           path: bin/*.apk
