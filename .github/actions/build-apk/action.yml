@@ -1,0 +1,123 @@
+name: 'Kivy App to APK'
+description: 'Build Kivy Android APK with Buildozer'
+
+inputs:
+  python-version:
+    description: 'Python version'
+    default: '3.11'
+
+  work-dir:
+    description: 'Working directory'
+    default: '.'
+
+  buildozer-cmd:
+    description: 'Buildozer command'
+    default: 'buildozer android debug'
+
+
+branding:
+  color: 'green'
+  icon: 'play'
+
+
+runs:
+  using: "composite"
+
+  steps:
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        architecture: x64
+        python-version: ${{ inputs.python-version }}
+
+
+    - name: Setup Java 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'
+
+
+    - name: Environment
+      run: |
+        echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
+        echo "PYTHONFORANDROID_PREREQUISITES_INSTALL_INTERACTIVE=0" >> $GITHUB_ENV
+      shell: bash
+
+
+    - name: Install system dependencies
+      run: |
+        sudo apt update
+
+        sudo apt install -y \
+          git \
+          zip \
+          unzip \
+          openjdk-17-jdk \
+          autoconf \
+          libtool \
+          pkg-config \
+          zlib1g-dev \
+          libncurses5-dev \
+          libncursesw5-dev \
+          cmake \
+          libffi-dev \
+          libssl-dev \
+          python3-venv
+
+      shell: bash
+
+
+    - name: Create Python environment
+      run: |
+
+        python3 -m venv venv
+
+        source venv/bin/activate
+
+        python -m pip install --upgrade pip
+
+        pip install \
+          Cython==0.29.33 \
+          buildozer==1.5.0
+
+      shell: bash
+
+
+    - name: Install requirements
+      run: |
+
+        source venv/bin/activate
+
+        if [ -f requirements.txt ]; then
+          pip install -r requirements.txt
+        fi
+
+      shell: bash
+
+
+    - name: Prepare Android SDK
+      run: |
+
+        source venv/bin/activate
+
+        buildozer android clean || true
+
+        buildozer android update
+
+      shell: bash
+
+      working-directory: ${{ inputs.work-dir }}
+
+
+    - name: Build APK
+      run: |
+
+        source venv/bin/activate
+
+        ${{ inputs.buildozer-cmd }}
+
+      shell: bash
+
+      working-directory: ${{ inputs.work-dir }}
