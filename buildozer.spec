@@ -11,7 +11,8 @@ android.permissions = INTERNET, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE
 android.meta_data = android.permission.MANAGE_EXTERNAL_STORAGE
 android.api = 33
 android.minapi = 24
-android.ndk = 25b
+# 重点！！把 ndk = 25b → ndk = 24
+android.ndk = 24
 android.sdk = 24
 android.build_tools = 34.0.0
 android.archs = arm64-v8a
