@@ -2,11 +2,13 @@ name: Build BiliPink APK
 
 
 on:
+
   push:
     branches:
       - main
 
   workflow_dispatch:
+
 
 
 jobs:
@@ -19,60 +21,67 @@ jobs:
     steps:
 
 
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
 
 
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
+      - name: Setup Python
+        uses: actions/setup-python@v5
+
+        with:
+          python-version: "3.11"
 
 
 
-    - name: Install dependencies
-      run: |
+      - name: Install Buildozer Environment
+        run: |
 
-        sudo apt update
+          sudo apt update
 
-        sudo apt install -y \
-          git \
-          zip \
-          unzip \
-          openjdk-17-jdk \
-          autoconf \
-          libtool \
-          pkg-config \
-          zlib1g-dev \
-          libffi-dev \
-          libssl-dev
-
-
-        pip install --upgrade pip
+          sudo apt install -y \
+            git \
+            zip \
+            unzip \
+            openjdk-17-jdk \
+            autoconf \
+            libtool \
+            pkg-config \
+            zlib1g-dev \
+            libffi-dev \
+            libssl-dev
 
 
-        pip install \
-          buildozer==1.5.0 \
-          Cython==0.29.36
+          pip install --upgrade pip
 
 
-
-
-    - name: Build APK
-      run: |
-
-        buildozer android clean
-
-        buildozer -v android debug
+          pip install \
+            buildozer==1.5.0 \
+            Cython==0.29.36
 
 
 
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
+      - name: Clean Old Build Cache
+        run: |
 
-      with:
+          rm -rf .buildozer
 
-        name: BiliPink-debug
+          rm -rf ~/.buildozer
 
-        path: bin/*.apk
+
+
+      - name: Build BiliPink APK
+        run: |
+
+          buildozer -v android debug
+
+
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+
+        with:
+
+          name: BiliPink-APK
+
+          path: bin/*.apk
