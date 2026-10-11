@@ -3,7 +3,6 @@ import re
 import os
 import requests
 
-# 改成安卓移动端UA，适配安卓环境
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Linux; Android 12; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
     'Referer': 'https://www.bilibili.com/'
@@ -64,7 +63,8 @@ def get_video_formats(video_info):
             "ext": "mp4",
             "filesize": video.get("size"),
             "format_id": video.get("id"),
-            "format_note": ""
+            "format_note": "",
+            "type": "video"
         })
     for audio in dash.get("audio", []):
         formats.append({
@@ -73,7 +73,8 @@ def get_video_formats(video_info):
             "ext": "m4a",
             "filesize": audio.get("size"),
             "format_id": audio.get("id"),
-            "format_note": "音频"
+            "format_note": "音频",
+            "type": "audio"
         })
     if not formats:
         raise Exception("没有找到可用DASH音视频流")
