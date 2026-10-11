@@ -5,12 +5,6 @@ import os
 import sys
 import requests
 
-if sys.platform == "android":
-    from jnius import autoclass, cast
-    MediaMuxer = autoclass('android.media.MediaMuxer')
-    MediaFormat = autoclass('android.media.MediaFormat')
-    File = autoclass('java.io.File')
-
 class DownloadManager:
     def __init__(self):
         self.tasks = {}
@@ -54,21 +48,27 @@ class DownloadManager:
 
     def merge_media_android(self, video_path, audio_path, out_path):
         """
-        安卓原生MediaMuxer无损合并mp4 + m4a，**不需要ffmpeg**
+        安卓原生MediaMuxer无损合并mp4 + m4a，不需要ffmpeg
+        JNI类全部在这里动态加载，APP启动不会触发！
         """
         if sys.platform != "android":
             raise Exception("仅安卓可用")
-        # MediaMuxer 输出文件
+
+        # =====全部jnius导入、类实例移到函数里面=====
+        from jnius import autoclass, cast
+        MediaMuxer = autoclass('android.media.MediaMuxer')
+        MediaExtractor = autoclass('android.media.MediaExtractor')
+        MediaFormat = autoclass('android.media.MediaFormat')
+        File = autoclass('java.io.File')
+        ByteBuffer = autoclass('java.nio.ByteBuffer')
+        BufferInfo = autoclass('android.media.MediaCodec$BufferInfo')
+
         output_file = File(out_path)
         muxer = MediaMuxer(output_file.getAbsolutePath(), MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
 
-        # 读取视频轨道信息
         videoFd = File(video_path)
         audioFd = File(audio_path)
 
-        # 注意：Bilibili DASH的视频是H264，音频是AAC，MediaMuxer原生支持
-        # 这里使用MediaExtractor解析音视频轨道
-        MediaExtractor = autoclass('android.media.MediaExtractor')
         videoExtractor = MediaExtractor()
         videoExtractor.setDataSource(videoFd.getAbsolutePath())
         audioExtractor = MediaExtractor()
@@ -101,9 +101,6 @@ class DownloadManager:
         # 开始封装
         muxer.start()
 
-        # 缓冲区
-        ByteBuffer = autoclass('java.nio.ByteBuffer')
-        BufferInfo = autoclass('android.media.MediaCodec$BufferInfo')
         info = BufferInfo()
         info.presentationTimeUs = 0
 
@@ -136,7 +133,7 @@ class DownloadManager:
             audioExtractor.advance()
             buffer.clear()
 
-        # 结束
+        # 释放资源
         muxer.stop()
         muxer.release()
         videoExtractor.release()
