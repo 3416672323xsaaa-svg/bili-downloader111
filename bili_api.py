@@ -3,8 +3,9 @@ import re
 import os
 import requests
 
+# 改成安卓移动端UA，适配安卓环境
 HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'User-Agent': 'Mozilla/5.0 (Linux; Android 12; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
     'Referer': 'https://www.bilibili.com/'
 }
 
@@ -22,6 +23,7 @@ def get_video_info(text):
     if not ids:
         raise Exception('无法识别视频编号')
     r = requests.get('https://api.bilibili.com/x/web-interface/view', params=ids, headers=HEADERS, timeout=15)
+    r.raise_for_status()
     d = r.json()
     if d.get('code') != 0:
         raise Exception(d.get('message', '解析失败'))
@@ -41,6 +43,7 @@ def get_play_info(bvid, cid):
     resp = requests.get('https://api.bilibili.com/x/player/playurl',
         params={'bvid': bvid, 'cid': cid, 'fnval': 16},
         headers=HEADERS, timeout=15)
+    resp.raise_for_status()
     return resp.json()
 
 def parse_video(text):
@@ -81,6 +84,7 @@ def download_cover(video_info, save_dir):
     if not url:
         raise Exception("没有封面链接")
     resp = requests.get(url, headers=HEADERS, timeout=20)
+    resp.raise_for_status()
     path = os.path.join(save_dir, "cover.jpg")
     with open(path, "wb") as f:
         f.write(resp.content)
