@@ -3,20 +3,27 @@ import threading
 import os
 import sys
 import requests
-import ffmpeg_kit
+import subprocess
 
 class DownloadManager:
     def __init__(self):
         self.tasks = {}
 
+    def get_ffmpeg_path(self):
+        if sys.platform == "android":
+            import android
+            ffmpeg_bin = os.path.join(android.app_root, "ffmpeg.bin")
+            os.chmod(ffmpeg_bin, 0o755)
+            return ffmpeg_bin
+        else:
+            return "ffmpeg"
+
     def output_dir(self):
         if sys.platform == "android":
-            # 手机公共存储 /storage/emulated/0/Download
             from android.storage import primary_external_storage_path
             root = primary_external_storage_path()
             save_path = os.path.join(root, "Download", "BiliPink")
         else:
-            # PC测试
             save_path = os.path.join(os.getcwd(), "bili_download")
         os.makedirs(save_path, exist_ok=True)
         return save_path
@@ -33,7 +40,6 @@ class DownloadManager:
         except Exception as e:
             self.tasks[name]=str(e)
 
-    # 下载单个文件，带进度回调
     def download_file(self, url, save_name, progress_callback):
         headers = {
             'User-Agent': 'Mozilla/5.0 (Linux; Android 12; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
@@ -51,11 +57,18 @@ class DownloadManager:
                     progress_callback(downloaded, total_size)
         return save_path
 
-    # ffmpeg-kit无损合并音视频，合并成功自动删除原始分轨文件
     def merge_video_audio(self, video_path, audio_path, out_path):
-        cmd = f"-i {video_path} -i {audio_path} -c copy {out_path}"
-        ret = ffmpeg_kit.execute(cmd)
-        if ret == 0:
+        ffmpeg = self.get_ffmpeg_path()
+        cmd = [
+            ffmpeg,
+            "-y",
+            "-i", video_path,
+            "-i", audio_path,
+            "-c", "copy",
+            out_path
+        ]
+        ret = subprocess.run(cmd, capture_output=True)
+        if ret.returncode == 0:
             os.remove(video_path)
             os.remove(audio_path)
             return True
