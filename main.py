@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
 """BiliPink - 哔哩哔哩视频下载器。Kivy 安卓入口。"""
+import os
+# 安卓Kivy字体渲染修复，必须放在最顶部，kivy导入之前！
+os.environ["KIVY_TEXT"] = "sdl2"
+os.environ["KIVY_DEFAULT_FONT"] = "Roboto"
+
 import threading
 import re
-import os
 import sys
 from kivy.app import App
 from kivy.clock import Clock
@@ -137,7 +141,7 @@ class BiliPinkApp(App):
                                     background_color=c(WHITE), color=c(DARK), font_name=FONT)
         body.add_widget(self.page_spinner)
 
-        quality_tip = Label(text="清晰度列表来自当前可访问的视频格式；分 P 选择会用于下载。", color=c(MUTED), font_size="10sp", font_name=FONT, size_hint_y=None, height=dp(30), halign="left", valign="middle")
+        quality_tip = Label(text="清晰度列表来自当前可访问的视频格式；分 P 选择会用于下载。", color=c(MUTED), font_name="10sp", font_name=FONT, size_hint_y=None, height=dp(30), halign="left", valign="middle")
         quality_tip.bind(size=lambda w, v: setattr(w, "text_size", v))
         body.add_widget(quality_tip)
 
