@@ -1,20 +1,54 @@
-name: Build APK
+name: Build
 on:
   push:
-  workflow_dispatch:
+    branches-ignore:
+      - data
+      - gh-pages
+    tags:
+      - '**'
+  pull_request:
+    branches-ignore:
+      - data
+      - gh-pages
 
 jobs:
-  build:
+  # Build job. Builds app for Android with Buildozer
+  build-android:
+    name: Build for Android
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
+        with:
+          path: master
 
-      - name: Run Kivy APK Build Action
-        uses: ./.github/操作/构建 apk
+      - name: Build with Buildozer
+        uses: ./master # REPLACE WITH ArtemSBulgakov/buildozer-action@v1
+        id: buildozer
+        with:
+          repository_root: master
+          workdir: test_app
+          buildozer_version: stable
 
-      - name: Upload built APK
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: BiliPink-Debug-APK
-          path: bin/*.apk
+          name: package
+          path: ${{ steps.buildozer.outputs.filename }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: data
+          ref: data # Branch name
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          architecture: x64
+
+      - name: Push binary to data branch
+        if: github.event_name == 'push'
+        run: python master/.ci/move_binary.py "${{ steps.buildozer.outputs.filename }}" master data bin
