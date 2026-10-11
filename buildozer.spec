@@ -17,6 +17,8 @@ android.build_tools = 34.0.0
 android.archs = arm64-v8a
 android.accept_sdk_license = True
 android.debug = True
+# 新增这一行！关闭format-security警告升级为错误
+android.add_cflags = -Wno-error=format-security
 
 [buildozer]
 log_level = 2
