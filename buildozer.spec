@@ -6,7 +6,7 @@ source.dir = .
 source.include_exts = py,png,jpg,jpeg,kv,json,txt
 version = 0.1
 
-requirements = python3,kivy==2.3.1,pillow,android,cffi==1.16.0,requests==2.28.1,urllib3==1.26.16,certifi,jnius==1.5.0
+requirements = python3,kivy==2.2.1,pillow,android,cffi==1.16.0,requests==2.28.1,urllib3==1.26.16,certifi,jnius==1.5.0
 android.permissions = INTERNET, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE
 android.meta_data = android.permission.MANAGE_EXTERNAL_STORAGE
 android.api = 33
@@ -17,8 +17,6 @@ android.build_tools = 34.0.0
 android.archs = arm64-v8a
 android.accept_sdk_license = True
 android.debug = True
-# 新增这一行！关闭format-security警告升级为错误
-android.add_cflags = -Wno-error=format-security
 
 [buildozer]
 log_level = 2
