@@ -22,7 +22,18 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
     - uses: actions/checkout@v7
-    - name: Install buildozer
+
+    - name: Install buildozer & p4a
       run: pip install buildozer python-for-android
+
+    - name: Auto accept SDK license (fix y/N prompt)
+      run: sed -i.bak "s/# android.accept_sdk_license = False/android.accept_sdk_license = True/" buildozer.spec
+
     - name: Build APK
       run: buildozer android debug
+
+    - name: Upload built APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: BiliPink-Debug-APK
+        path: bin/*.apk
