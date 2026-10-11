@@ -12,8 +12,12 @@ android.api = 33
 android.minapi = 24
 android.ndk = 25b
 android.sdk = 24
+# 核心改动：锁定为34.0.0，避开37的许可问题
+android.build_tools = 34.0.0
 android.archs = arm64-v8a
 
 [buildozer]
 log_level = 2
 warn_on_root = 1
+# 额外加一行，禁止buildozer自动升级build-tools
+android.accept_sdk_license = True
