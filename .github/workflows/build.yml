@@ -1,109 +1,75 @@
 name: Build BiliPink APK
 
+
 on:
-  push:
-    branches:
-      - main
 
   workflow_dispatch:
 
 
 jobs:
+
   build:
 
-    # 不使用ubuntu-latest，固定22.04
     runs-on: ubuntu-22.04
-
-
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      JAVA_HOME: /usr/lib/jvm/temurin-17-jdk-amd64
-
-      # Buildozer缓存目录
-      BUILDOZER_HOME: ~/.buildozer
-
-      # Cython兼容
-      CYTHON_LANGUAGE_LEVEL: "3"
 
 
     steps:
 
 
-      - name: Checkout
-        uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v4
 
 
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
 
 
 
-      - name: Cache Buildozer
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.buildozer
-          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
-          restore-keys: |
-            buildozer-${{ runner.os }}-
+    - name: Install dependencies
+      run: |
+
+        sudo apt update
+
+        sudo apt install -y \
+          git \
+          zip \
+          unzip \
+          openjdk-17-jdk \
+          autoconf \
+          libtool \
+          pkg-config \
+          zlib1g-dev \
+          libffi-dev \
+          libssl-dev
+
+
+        pip install --upgrade pip
+
+
+        pip install \
+          buildozer==1.5.0 \
+          Cython==0.29.36
 
 
 
-      - name: Install dependencies
-        run: |
 
-          sudo apt update
+    - name: Build APK
+      run: |
 
-          sudo apt install -y \
-            git \
-            zip \
-            unzip \
-            openjdk-17-jdk \
-            autoconf \
-            libtool \
-            pkg-config \
-            zlib1g-dev \
-            libffi-dev \
-            libssl-dev \
-            libsqlite3-dev \
-            libbz2-dev \
-            liblzma-dev
+        buildozer android clean
 
-
-          python -m pip install --upgrade pip
-
-
-          pip install \
-            buildozer==1.5.0 \
-            Cython==0.29.33
+        buildozer -v android debug
 
 
 
-      - name: Build APK
-        run: |
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
 
-          buildozer -v android debug
+      with:
 
+        name: BiliPink-debug
 
-
-      - name: Show APK
-        if: always()
-        run: |
-
-          ls -al bin || true
-
-
-
-      - name: Upload APK
-        if: success()
-        uses: actions/upload-artifact@v4
-
-        with:
-
-          name: BiliPink APK
-
-          path: bin/*.apk
+        path: bin/*.apk
