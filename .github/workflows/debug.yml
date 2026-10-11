@@ -6,11 +6,7 @@ env:
 name: Android Integration
 jobs:
   Integration:
-    strategy:
-      matrix:
-        os:
-          - 'ubuntu-latest'
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
     - name: Setup Python
       uses: actions/setup-python@v7
@@ -23,11 +19,15 @@ jobs:
         distribution: 'temurin'
     - uses: actions/checkout@v7
 
+    - name: Install system deps
+      run: sudo apt update && sudo apt install -y autoconf automake libtool pkg-config zlib1g-dev
+
     - name: Install buildozer & p4a
       run: pip install buildozer python-for-android
 
-    - name: Auto accept SDK license (fix y/N prompt)
-      run: sed -i.bak "s/# android.accept_sdk_license = False/android.accept_sdk_license = True/" buildozer.spec
+    - name: Pre accept all SDK licenses
+      run: |
+        yes | buildozer android sdk --sdkmanager --licenses
 
     - name: Build APK
       run: buildozer android debug
